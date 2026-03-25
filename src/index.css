@@ -1,83 +1,55 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Merriweather:wght@300;400;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Playfair+Display:wght@400;500;600;700&display=swap');
-
-/* Design System - Editorial Modern */
-
 @layer base {
   :root {
-    --background: 40 33% 98%;
-    --foreground: 220 20% 15%;
+    --background: 210 40% 98.4%;
+    --foreground: 215 25% 27%;
 
-    --card: 40 25% 96%;
-    --card-foreground: 220 20% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 27%;
 
-    --popover: 40 33% 98%;
-    --popover-foreground: 220 20% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 27%;
 
-    --primary: 220 20% 15%;
-    --primary-foreground: 40 33% 98%;
+    --primary: 222 47% 11%;
+    --primary-foreground: 210 40% 98%;
 
-    --secondary: 40 20% 92%;
-    --secondary-foreground: 220 20% 15%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
 
-    --muted: 40 15% 90%;
-    --muted-foreground: 220 10% 45%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
 
-    --accent: 12 76% 61%;
+    --accent: 217 91% 60%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84.2% 60.2%;
+    --success: 160 84% 39%;
+    --success-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 40 15% 88%;
-    --input: 40 15% 88%;
-    --ring: 12 76% 61%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 217 91% 60%;
 
-    --radius: 0.75rem;
+    --radius: 0.5rem;
 
-    /* Custom tokens */
-    --gradient-hero: linear-gradient(135deg, hsl(40 33% 98%) 0%, hsl(40 25% 94%) 100%);
-    --shadow-soft: 0 4px 20px -4px hsl(220 20% 15% / 0.08);
-    --shadow-card: 0 8px 30px -8px hsl(220 20% 15% / 0.12);
-    --shadow-accent: 0 8px 24px -4px hsl(12 76% 61% / 0.3);
-  }
+    --sidebar-background: 222 47% 11%;
+    --sidebar-foreground: 213 31% 91%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 217 33% 17%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217 33% 17%;
+    --sidebar-ring: 217 91% 60%;
 
-  .dark {
-    --background: 220 20% 10%;
-    --foreground: 40 33% 98%;
-
-    --card: 220 18% 14%;
-    --card-foreground: 40 33% 98%;
-
-    --popover: 220 20% 10%;
-    --popover-foreground: 40 33% 98%;
-
-    --primary: 40 33% 98%;
-    --primary-foreground: 220 20% 10%;
-
-    --secondary: 220 15% 18%;
-    --secondary-foreground: 40 33% 98%;
-
-    --muted: 220 15% 20%;
-    --muted-foreground: 40 10% 65%;
-
-    --accent: 12 76% 61%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 220 15% 20%;
-    --input: 220 15% 20%;
-    --ring: 12 76% 61%;
-
-    --gradient-hero: linear-gradient(135deg, hsl(220 20% 10%) 0%, hsl(220 18% 14%) 100%);
-    --shadow-soft: 0 4px 20px -4px hsl(0 0% 0% / 0.3);
-    --shadow-card: 0 8px 30px -8px hsl(0 0% 0% / 0.4);
-    --shadow-accent: 0 8px 24px -4px hsl(12 76% 61% / 0.4);
+    --font-display: 'Inter', sans-serif;
+    --font-body: 'Merriweather', serif;
   }
 }
 
@@ -87,34 +59,42 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'DM Sans', sans-serif;
+    @apply bg-background text-foreground;
+    font-family: var(--font-display);
   }
 
-  h1, h2, h3, h4, h5, h6 {
-    font-family: 'Playfair Display', serif;
-    @apply font-semibold tracking-tight;
+  .font-body {
+    font-family: var(--font-body);
+  }
+
+  .font-display {
+    font-family: var(--font-display);
   }
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+@layer components {
+  .paper-view {
+    @apply max-w-[800px] mx-auto;
   }
-  
-  .gradient-hero {
-    background: var(--gradient-hero);
+
+  .research-log-item {
+    @apply px-3 py-2 text-sm border-l-2 border-transparent;
   }
-  
-  .shadow-soft {
-    box-shadow: var(--shadow-soft);
+
+  .research-log-item.active {
+    @apply border-l-accent;
   }
-  
-  .shadow-card {
-    box-shadow: var(--shadow-card);
+
+  .research-log-item.success {
+    @apply border-l-success;
   }
-  
-  .shadow-accent {
-    box-shadow: var(--shadow-accent);
-  }
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.animate-pulse-dot {
+  animation: pulse-dot 1.5s ease-in-out infinite;
 }
