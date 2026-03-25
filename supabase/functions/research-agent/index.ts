@@ -434,7 +434,7 @@ serve(async (req) => {
             ...extractedContent.map((r) => r.source),
           ];
 
-          const systemPrompt = getSystemPrompt(depthKey);
+          const systemPrompt = getSystemPrompt(depthKey, researchType);
 
           let userPrompt: string;
           const isCont = batchIndex > 0 && previousContent;
@@ -445,6 +445,7 @@ serve(async (req) => {
             userPrompt = `Research Question: ${query}
 
 Research Depth Level: ${depthKey.toUpperCase()}
+Research Type: ${researchType.toUpperCase()}
 Batch Index: ${batchIndex}
 
 IMPORTANT: This is a CONTINUATION of previous research. Continue EXACTLY where the previous content stopped. Do NOT repeat any previously generated content. Maintain the same style, tone, and formatting.
@@ -465,6 +466,7 @@ ${allSources.length > 0 ? allSources.map((s, i) => `${i + 1}. ${s}`).join("\n") 
             userPrompt = `Research Question: ${query}
 
 Research Depth Level: ${depthKey.toUpperCase()}
+Research Type: ${researchType.toUpperCase()}
 
 Available Sources and Content:
 ${allContent || "No content was found. Please provide a general answer based on your training, and note that no external sources were available."}
