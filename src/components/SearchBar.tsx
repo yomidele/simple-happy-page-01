@@ -1,16 +1,30 @@
-import { useState } from "react";
-import { Search } from "lucide-react";
+import { useState, useCallback } from "react";
+import { Search, Mic, MicOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DepthSlider } from "@/components/DepthSlider";
+import { useVoiceSearch, type VoiceStatus } from "@/hooks/useVoiceSearch";
 
 interface SearchBarProps {
   onSubmit: (query: string, depth: number) => void;
   isLoading: boolean;
 }
 
+function VoiceMicIcon({ status }: { status: VoiceStatus }) {
+  if (status === "processing") return <Loader2 className="h-4 w-4 animate-spin" />;
+  if (status === "listening") return <Mic className="h-4 w-4 text-destructive animate-pulse" />;
+  return <Mic className="h-4 w-4" />;
+}
+
 export function SearchBar({ onSubmit, isLoading }: SearchBarProps) {
   const [query, setQuery] = useState("");
   const [depth, setDepth] = useState(2);
+
+  const handleVoiceResult = useCallback((transcript: string) => {
+    setQuery(transcript);
+  }, []);
+
+  const { status: voiceStatus, interimText, supported: voiceSupported, toggleListening } =
+    useVoiceSearch(handleVoiceResult);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,6 +33,8 @@ export function SearchBar({ onSubmit, isLoading }: SearchBarProps) {
     }
   };
 
+  const displayValue = voiceStatus === "listening" && interimText ? interimText : query;
+
   return (
     <form onSubmit={handleSubmit} className="w-full space-y-2 md:space-y-3">
       <DepthSlider value={depth} onChange={setDepth} />
@@ -26,12 +42,25 @@ export function SearchBar({ onSubmit, isLoading }: SearchBarProps) {
         <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
         <input
           type="text"
-          value={query}
+          value={displayValue}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Ask a research question…"
+          placeholder={voiceStatus === "listening" ? "Listening…" : "Ask a research question…"}
           className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none font-display min-w-0"
           disabled={isLoading}
         />
+        {voiceSupported && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={toggleListening}
+            disabled={isLoading}
+            className="h-8 w-8 flex-shrink-0"
+            title={voiceStatus === "listening" ? "Stop listening" : "Voice search"}
+          >
+            <VoiceMicIcon status={voiceStatus} />
+          </Button>
+        )}
         <Button
           type="submit"
           size="sm"

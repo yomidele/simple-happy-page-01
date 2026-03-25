@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import mermaid from "mermaid";
+import { sanitizeMermaid } from "@/lib/sanitizeMermaid";
 
 mermaid.initialize({
   startOnLoad: false,
@@ -10,43 +11,41 @@ mermaid.initialize({
 
 let counter = 0;
 
-const VALID_STARTS = [
-  "graph ", "graph\n", "flowchart ", "flowchart\n",
-  "sequenceDiagram", "classDiagram", "stateDiagram",
-  "erDiagram", "gantt", "pie", "gitGraph", "mindmap",
-  "timeline", "journey", "quadrantChart", "xychart",
-  "sankey", "block-beta",
-];
-
-function isValidMermaidSyntax(chart: string): boolean {
-  const trimmed = chart.trim();
-  return VALID_STARTS.some((s) => trimmed.startsWith(s));
-}
-
 export function MermaidDiagram({ chart }: { chart: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const [error, setError] = useState(false);
+  const [sanitized, setSanitized] = useState<string | null>(null);
 
   useEffect(() => {
     if (!ref.current) return;
-    if (!isValidMermaidSyntax(chart)) {
+
+    const clean = sanitizeMermaid(chart);
+    if (!clean) {
+      setSanitized(null);
       setError(true);
       return;
     }
+
+    setSanitized(clean);
+    setError(false);
     const id = `mermaid-${++counter}`;
+
     mermaid
-      .render(id, chart)
+      .render(id, clean)
       .then(({ svg }) => {
         if (ref.current) ref.current.innerHTML = svg;
       })
-      .catch(() => setError(true));
+      .catch((err) => {
+        console.debug("[MermaidDiagram] Render failed after sanitization:", err);
+        setError(true);
+      });
   }, [chart]);
 
   if (error) {
     return (
-      <pre className="bg-muted rounded-lg p-4 text-xs overflow-x-auto font-mono text-foreground">
-        <code>{chart}</code>
-      </pre>
+      <div className="bg-muted rounded-lg p-4 text-sm text-muted-foreground font-display">
+        Mermaid diagram could not be rendered. Content sanitized.
+      </div>
     );
   }
 
