@@ -39,7 +39,14 @@ export function SearchBar({ onSubmit, isLoading }: SearchBarProps) {
 
   return (
     <form onSubmit={handleSubmit} className="w-full space-y-2 md:space-y-3">
-      <DepthSlider value={depth} onChange={setDepth} />
+      <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+        <div className="flex-1 min-w-0">
+          <DepthSlider value={depth} onChange={setDepth} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <ResearchTypeSelector value={researchType} onChange={setResearchType} />
+        </div>
+      </div>
       <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-2 md:px-3 py-2 shadow-sm focus-within:ring-2 focus-within:ring-accent/30 focus-within:border-accent transition-all">
         <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
         <input
