@@ -7,6 +7,7 @@ mermaid.initialize({
   theme: "neutral",
   securityLevel: "loose",
   fontFamily: "Inter, sans-serif",
+  suppressErrorRendering: true,
 });
 
 let counter = 0;
@@ -14,31 +15,52 @@ let counter = 0;
 export function MermaidDiagram({ chart }: { chart: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const [error, setError] = useState(false);
-  const [sanitized, setSanitized] = useState<string | null>(null);
+  const idRef = useRef(`mermaid-${++counter}`);
 
   useEffect(() => {
     if (!ref.current) return;
 
     const clean = sanitizeMermaid(chart);
     if (!clean) {
-      setSanitized(null);
       setError(true);
       return;
     }
 
-    setSanitized(clean);
-    setError(false);
-    const id = `mermaid-${++counter}`;
+    let cancelled = false;
+    const id = idRef.current;
 
-    mermaid
-      .render(id, clean)
-      .then(({ svg }) => {
-        if (ref.current) ref.current.innerHTML = svg;
-      })
-      .catch((err) => {
-        console.debug("[MermaidDiagram] Render failed after sanitization:", err);
-        setError(true);
-      });
+    (async () => {
+      try {
+        // Validate first — this avoids mermaid injecting error elements
+        const valid = await mermaid.parse(clean, { suppressErrors: true });
+        if (!valid || cancelled) {
+          if (!cancelled) setError(true);
+          return;
+        }
+
+        const { svg } = await mermaid.render(id, clean);
+        if (!cancelled && ref.current) {
+          ref.current.innerHTML = svg;
+          setError(false);
+        }
+      } catch (err) {
+        console.debug("[MermaidDiagram] Render failed:", err);
+        if (!cancelled) {
+          setError(true);
+          // Clean up any error elements mermaid injected into the body
+          const errorEl = document.getElementById("d" + id);
+          if (errorEl) errorEl.remove();
+          const errorContainer = document.querySelector(`[id="${id}"]`);
+          if (errorContainer && !ref.current?.contains(errorContainer)) {
+            errorContainer.remove();
+          }
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [chart]);
 
   if (error) {
