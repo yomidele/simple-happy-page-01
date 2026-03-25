@@ -19,6 +19,7 @@ function VoiceMicIcon({ status }: { status: VoiceStatus }) {
 export function SearchBar({ onSubmit, isLoading }: SearchBarProps) {
   const [query, setQuery] = useState("");
   const [depth, setDepth] = useState(2);
+  const [researchType, setResearchType] = useState<ResearchType>("general");
 
   const handleVoiceResult = useCallback((transcript: string) => {
     setQuery(transcript);
@@ -30,7 +31,7 @@ export function SearchBar({ onSubmit, isLoading }: SearchBarProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim() && !isLoading) {
-      onSubmit(query.trim(), depth);
+      onSubmit(query.trim(), depth, researchType);
     }
   };
 
