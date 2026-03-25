@@ -11,7 +11,7 @@ interface SearchBarProps {
 
 function VoiceMicIcon({ status }: { status: VoiceStatus }) {
   if (status === "processing") return <Loader2 className="h-4 w-4 animate-spin" />;
-  if (status === "listening") return <Mic className="h-4 w-4 text-red-500 animate-pulse" />;
+  if (status === "listening") return <Mic className="h-4 w-4 text-destructive animate-pulse" />;
   return <Mic className="h-4 w-4" />;
 }
 
