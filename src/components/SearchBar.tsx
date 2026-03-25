@@ -2,10 +2,11 @@ import { useState, useCallback } from "react";
 import { Search, Mic, MicOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DepthSlider } from "@/components/DepthSlider";
+import { ResearchTypeSelector, type ResearchType } from "@/components/ResearchTypeSelector";
 import { useVoiceSearch, type VoiceStatus } from "@/hooks/useVoiceSearch";
 
 interface SearchBarProps {
-  onSubmit: (query: string, depth: number) => void;
+  onSubmit: (query: string, depth: number, researchType: ResearchType) => void;
   isLoading: boolean;
 }
 
