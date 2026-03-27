@@ -5,8 +5,10 @@ import { LinkPreviewCard } from "@/components/LinkPreviewCard";
 import { MermaidDiagram } from "@/components/MermaidDiagram";
 import { LinkViewer } from "@/components/LinkViewer";
 import { Button } from "@/components/ui/button";
-import { ClipboardCopy, Download, PlayCircle } from "lucide-react";
+import { ClipboardCopy, Download, PlayCircle, ChevronDown, ChevronUp, Minimize2, Maximize2, Target } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import type { Source } from "@/types/research";
+import type { ResearchMode } from "@/components/ModeSwitcher";
 
 interface ResearchOutputProps {
   content: string;
@@ -17,9 +19,208 @@ interface ResearchOutputProps {
   error: string | null;
   hasMore: boolean;
   onContinue?: () => void;
+  mode?: ResearchMode;
 }
 
-export function ResearchOutput({ content, sources, isLoading, error, hasMore, onContinue, isPaused, retryCountdown }: ResearchOutputProps) {
+// Parse markdown content into titled sections
+function parseSections(content: string): Array<{ title: string; body: string }> {
+  const lines = content.split("\n");
+  const sections: Array<{ title: string; body: string }> = [];
+  let currentTitle = "";
+  let currentBody: string[] = [];
+
+  for (const line of lines) {
+    const headingMatch = line.match(/^#{1,3}\s+(.+)/);
+    if (headingMatch) {
+      if (currentTitle || currentBody.length > 0) {
+        sections.push({ title: currentTitle, body: currentBody.join("\n") });
+      }
+      currentTitle = headingMatch[1];
+      currentBody = [];
+    } else {
+      currentBody.push(line);
+    }
+  }
+  if (currentTitle || currentBody.length > 0) {
+    sections.push({ title: currentTitle, body: currentBody.join("\n") });
+  }
+  return sections;
+}
+
+const markdownComponents = (handleLinkClick: (url: string, title?: string) => void) => ({
+  code({ className, children, ...props }: any) {
+    const match = /language-mermaid/.test(className || "");
+    const code = String(children).replace(/\n$/, "");
+    if (match) return <MermaidDiagram chart={code} />;
+    return <code className={className} {...props}>{children}</code>;
+  },
+  a({ href, children }: any) {
+    if (!href) return <span>{children}</span>;
+    return (
+      <a
+        href={href}
+        onClick={(e: React.MouseEvent) => {
+          e.preventDefault();
+          handleLinkClick(href, typeof children === "string" ? children : undefined);
+        }}
+        className="text-primary cursor-pointer hover:underline"
+      >
+        {children}
+      </a>
+    );
+  },
+  table({ children }: any) {
+    return (
+      <div className="overflow-x-auto -mx-4 px-4 md:-mx-8 md:px-8">
+        <table className="min-w-full">{children}</table>
+      </div>
+    );
+  },
+});
+
+// Refine buttons for each section
+function RefineButtons({ onAction }: { onAction: (action: string) => void }) {
+  return (
+    <div className="flex gap-1.5 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+      <button onClick={() => onAction("simplify")} className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-md bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors">
+        <Minimize2 className="h-3 w-3" /> Simplify
+      </button>
+      <button onClick={() => onAction("expand")} className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-md bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors">
+        <Maximize2 className="h-3 w-3" /> Expand
+      </button>
+      <button onClick={() => onAction("decide")} className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-md bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors">
+        <Target className="h-3 w-3" /> Decision-Focus
+      </button>
+    </div>
+  );
+}
+
+// ─── EXECUTIVE MODE ──────────────────────────────────────────
+function ExecutiveLayout({ content, handleLinkClick }: { content: string; handleLinkClick: (url: string, title?: string) => void }) {
+  const sections = parseSections(content);
+  if (sections.length <= 1) {
+    return <DefaultMarkdown content={content} handleLinkClick={handleLinkClick} />;
+  }
+
+  return (
+    <div className="space-y-3">
+      {sections.map((section, i) => {
+        const isVerdict = section.title.toLowerCase().includes("verdict") || section.title.toLowerCase().includes("conclusion");
+        return (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.05 }}
+            className={`group rounded-xl border p-4 ${
+              isVerdict
+                ? "border-primary/30 bg-primary/5"
+                : "border-border bg-card"
+            }`}
+          >
+            {section.title && (
+              <h3 className={`text-sm font-bold font-display mb-2 ${isVerdict ? "text-primary" : "text-foreground"}`}>
+                {section.title}
+              </h3>
+            )}
+            <div className="prose prose-slate dark:prose-invert max-w-none prose-sm font-body prose-p:leading-snug prose-p:mb-1.5 overflow-x-hidden">
+              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents(handleLinkClick)}>
+                {section.body.trim()}
+              </ReactMarkdown>
+            </div>
+            <RefineButtons onAction={() => {}} />
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── RESEARCH MODE (collapsible panels) ──────────────────────
+function ResearchLayout({ content, handleLinkClick }: { content: string; handleLinkClick: (url: string, title?: string) => void }) {
+  const sections = parseSections(content);
+  const [collapsed, setCollapsed] = useState<Record<number, boolean>>({});
+
+  if (sections.length <= 1) {
+    return <DefaultMarkdown content={content} handleLinkClick={handleLinkClick} />;
+  }
+
+  const toggle = (idx: number) => setCollapsed((prev) => ({ ...prev, [idx]: !prev[idx] }));
+
+  return (
+    <div className="space-y-2">
+      {sections.map((section, i) => (
+        <motion.div
+          key={i}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: i * 0.04 }}
+          className="group border border-border rounded-xl bg-card overflow-hidden"
+        >
+          {section.title && (
+            <button
+              onClick={() => toggle(i)}
+              className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-muted/50 transition-colors"
+            >
+              <span className="text-sm font-semibold font-display text-foreground">{section.title}</span>
+              {collapsed[i] ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronUp className="h-4 w-4 text-muted-foreground" />}
+            </button>
+          )}
+          <AnimatePresence initial={false}>
+            {!collapsed[i] && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <div className="px-4 pb-4 prose prose-slate dark:prose-invert max-w-none prose-sm md:prose-base font-body prose-headings:font-display prose-p:leading-relaxed overflow-x-hidden">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents(handleLinkClick)}>
+                    {section.body.trim()}
+                  </ReactMarkdown>
+                </div>
+                <div className="px-4 pb-3">
+                  <RefineButtons onAction={() => {}} />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
+      ))}
+    </div>
+  );
+}
+
+// ─── LITERATURE MODE (reading flow) ──────────────────────────
+function LiteratureLayout({ content, handleLinkClick }: { content: string; handleLinkClick: (url: string, title?: string) => void }) {
+  return (
+    <article className="prose prose-slate dark:prose-invert max-w-none font-body prose-headings:font-display prose-headings:text-primary prose-p:leading-loose prose-p:text-[15px] md:prose-p:text-base prose-li:leading-loose prose-sm md:prose-base overflow-x-hidden">
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents(handleLinkClick)}>
+        {content}
+      </ReactMarkdown>
+    </article>
+  );
+}
+
+// ─── Default fallback ────────────────────────────────────────
+function DefaultMarkdown({ content, handleLinkClick }: { content: string; handleLinkClick: (url: string, title?: string) => void }) {
+  return (
+    <div className="prose prose-slate dark:prose-invert max-w-none font-body prose-headings:font-display prose-headings:text-primary prose-p:leading-relaxed prose-li:leading-relaxed prose-sm md:prose-base overflow-x-hidden">
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents(handleLinkClick)}>
+        {content}
+      </ReactMarkdown>
+    </div>
+  );
+}
+
+const MODE_LABELS: Record<ResearchMode, string> = {
+  executive: "Executive Summary",
+  research: "Research Report",
+  literature: "Literature Review",
+};
+
+export function ResearchOutput({ content, sources, isLoading, error, hasMore, onContinue, isPaused, retryCountdown, mode = "research" }: ResearchOutputProps) {
   const reportRef = useRef<HTMLDivElement>(null);
   const [viewerUrl, setViewerUrl] = useState<{ url: string; title?: string } | null>(null);
 
@@ -53,7 +254,7 @@ export function ResearchOutput({ content, sources, isLoading, error, hasMore, on
     <div className="w-full">
       {viewerUrl && <LinkViewer url={viewerUrl.url} title={viewerUrl.title} onClose={() => setViewerUrl(null)} />}
 
-      {/* Toolbar - sticky on mobile so it's always accessible */}
+      {/* Toolbar - sticky on mobile */}
       {content && !isLoading && (
         <div className="flex justify-end gap-2 mb-3 sticky top-0 z-20 bg-background/95 backdrop-blur-sm py-2 -mx-4 px-4 md:mx-0 md:px-0 md:static md:bg-transparent md:backdrop-blur-none md:py-0">
           <Button variant="outline" size="sm" onClick={handleCopy} className="gap-1.5 text-xs h-9">
@@ -65,57 +266,33 @@ export function ResearchOutput({ content, sources, isLoading, error, hasMore, on
         </div>
       )}
 
-      {/* Report header dots */}
-      <div ref={reportRef} className="bg-card border border-border rounded-2xl overflow-hidden">
+      {/* Report container */}
+      <div ref={reportRef} className={`bg-card border border-border rounded-2xl overflow-hidden ${mode === "literature" ? "" : ""}`}>
         <div className="flex items-center gap-1.5 px-5 pt-4 pb-2">
           <div className="h-2.5 w-2.5 rounded-full bg-destructive/50" />
-          <div className="h-2.5 w-2.5 rounded-full bg-yellow-400/50" />
-          <div className="h-2.5 w-2.5 rounded-full bg-success/50" />
-          <span className="ml-2 text-xs text-muted-foreground font-display">Research Report</span>
+          <div className="h-2.5 w-2.5 rounded-full bg-accent/50" />
+          <div className="h-2.5 w-2.5 rounded-full bg-primary/50" />
+          <span className="ml-2 text-xs text-muted-foreground font-display">{MODE_LABELS[mode]}</span>
         </div>
 
-        <article className="px-4 md:px-8 py-4 md:py-6">
-          <div className="prose prose-slate dark:prose-invert max-w-none font-body prose-headings:font-display prose-headings:text-primary prose-p:leading-relaxed prose-li:leading-relaxed prose-sm md:prose-base overflow-x-hidden">
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              components={{
-                code({ className, children, ...props }) {
-                  const match = /language-mermaid/.test(className || "");
-                  const code = String(children).replace(/\n$/, "");
-                  if (match) return <MermaidDiagram chart={code} />;
-                  return <code className={className} {...props}>{children}</code>;
-                },
-                a({ href, children }) {
-                  if (!href) return <span>{children}</span>;
-                  return (
-                    <a
-                      href={href}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleLinkClick(href, typeof children === "string" ? children : undefined);
-                      }}
-                      className="text-primary cursor-pointer hover:underline"
-                    >
-                      {children}
-                    </a>
-                  );
-                },
-                table({ children }) {
-                  return (
-                    <div className="overflow-x-auto -mx-4 px-4 md:-mx-8 md:px-8">
-                      <table className="min-w-full">{children}</table>
-                    </div>
-                  );
-                },
-              }}
+        <div className={`px-4 py-4 ${mode === "literature" ? "md:px-10 md:py-8" : "md:px-6 md:py-6"}`}>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={mode}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.2 }}
             >
-              {content}
-            </ReactMarkdown>
-          </div>
+              {mode === "executive" && <ExecutiveLayout content={content} handleLinkClick={handleLinkClick} />}
+              {mode === "research" && <ResearchLayout content={content} handleLinkClick={handleLinkClick} />}
+              {mode === "literature" && <LiteratureLayout content={content} handleLinkClick={handleLinkClick} />}
+            </motion.div>
+          </AnimatePresence>
 
           {/* Loading cursor */}
           {isLoading && content && !isPaused && (
-            <span className="inline-block h-4 w-0.5 bg-primary animate-pulse-dot ml-0.5" />
+            <span className="inline-block h-4 w-0.5 bg-primary animate-pulse-dot ml-0.5 mt-2" />
           )}
 
           {/* Continue button */}
@@ -158,7 +335,7 @@ export function ResearchOutput({ content, sources, isLoading, error, hasMore, on
               </div>
             </div>
           )}
-        </article>
+        </div>
       </div>
     </div>
   );
