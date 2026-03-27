@@ -1,14 +1,33 @@
 import { FileText, Activity, BookmarkCheck, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 interface DashboardOverviewProps {
   onStartResearch: () => void;
 }
 
 export function DashboardOverview({ onStartResearch }: DashboardOverviewProps) {
+  const { user } = useAuth();
+  const [totalResearches, setTotalResearches] = useState<number | null>(null);
+  const [savedReports, setSavedReports] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    const fetchStats = async () => {
+      const [historyRes, bookmarksRes] = await Promise.all([
+        supabase.from("research_history").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+        supabase.from("bookmarks").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+      ]);
+      setTotalResearches(historyRes.count ?? 0);
+      setSavedReports(bookmarksRes.count ?? 0);
+    };
+    fetchStats();
+  }, [user]);
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 md:py-12">
-      {/* Greeting */}
       <div className="mb-10">
         <h1 className="text-2xl md:text-3xl font-bold text-foreground font-display mb-2">
           Good {getGreeting()}.
@@ -18,14 +37,12 @@ export function DashboardOverview({ onStartResearch }: DashboardOverviewProps) {
         </p>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
-        <StatCard icon={FileText} label="Total Researches" value="—" />
-        <StatCard icon={Activity} label="Active Sessions" value="—" />
-        <StatCard icon={BookmarkCheck} label="Saved Reports" value="—" />
+        <StatCard icon={FileText} label="Total Researches" value={totalResearches !== null ? String(totalResearches) : "…"} />
+        <StatCard icon={Activity} label="Active Sessions" value="0" />
+        <StatCard icon={BookmarkCheck} label="Saved Reports" value={savedReports !== null ? String(savedReports) : "…"} />
       </div>
 
-      {/* Quick Actions */}
       <div className="space-y-3">
         <Button
           onClick={onStartResearch}
@@ -37,7 +54,6 @@ export function DashboardOverview({ onStartResearch }: DashboardOverviewProps) {
         </Button>
       </div>
 
-      {/* Suggestion Cards */}
       <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-3">
         {suggestions.map((s) => (
           <button

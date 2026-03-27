@@ -53,13 +53,13 @@ export function ResearchOutput({ content, sources, isLoading, error, hasMore, on
     <div className="w-full">
       {viewerUrl && <LinkViewer url={viewerUrl.url} title={viewerUrl.title} onClose={() => setViewerUrl(null)} />}
 
-      {/* Toolbar */}
+      {/* Toolbar - sticky on mobile so it's always accessible */}
       {content && !isLoading && (
-        <div className="flex justify-end gap-2 mb-3">
-          <Button variant="outline" size="sm" onClick={handleCopy} className="gap-1.5 text-xs">
+        <div className="flex justify-end gap-2 mb-3 sticky top-0 z-20 bg-background/95 backdrop-blur-sm py-2 -mx-4 px-4 md:mx-0 md:px-0 md:static md:bg-transparent md:backdrop-blur-none md:py-0">
+          <Button variant="outline" size="sm" onClick={handleCopy} className="gap-1.5 text-xs h-9">
             <ClipboardCopy className="h-3.5 w-3.5" /> Copy
           </Button>
-          <Button variant="outline" size="sm" onClick={handleDownload} className="gap-1.5 text-xs">
+          <Button variant="outline" size="sm" onClick={handleDownload} className="gap-1.5 text-xs h-9">
             <Download className="h-3.5 w-3.5" /> PDF
           </Button>
         </div>
