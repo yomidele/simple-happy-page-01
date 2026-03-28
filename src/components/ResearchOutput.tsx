@@ -24,6 +24,8 @@ interface ResearchOutputProps {
   hasMore: boolean;
   onContinue?: () => void;
   mode?: ResearchMode;
+  onRefineSection?: (sectionBody: string, action: string) => void;
+  researchId?: string | null;
 }
 
 // Parse markdown content into titled sections
@@ -96,17 +98,27 @@ const markdownComponents = (handleLinkClick: (url: string, title?: string) => vo
 });
 
 // Refine buttons for each section
-function RefineButtons({ onAction }: { onAction: (action: string) => void }) {
+function RefineButtons({ sectionBody, onAction }: { sectionBody: string; onAction?: (sectionBody: string, action: string) => void }) {
+  const [loading, setLoading] = useState<string | null>(null);
+
+  const handleClick = (action: string) => {
+    if (!onAction) return;
+    setLoading(action);
+    onAction(sectionBody, action);
+    // Reset after a short delay (parent will update content)
+    setTimeout(() => setLoading(null), 2000);
+  };
+
   return (
-    <div className="flex flex-wrap gap-1.5 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-      <button onClick={() => onAction("simplify")} className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-md bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors">
-        <Minimize2 className="h-3 w-3" /> Simplify
+    <div className="flex flex-wrap gap-1.5 mt-2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+      <button onClick={() => handleClick("simplify")} disabled={!!loading} className="inline-flex items-center gap-1 text-[10px] px-2.5 py-1.5 rounded-md bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors disabled:opacity-50 cursor-pointer active:scale-95">
+        {loading === "simplify" ? <span className="h-3 w-3 border border-current border-t-transparent rounded-full animate-spin" /> : <Minimize2 className="h-3 w-3" />} Simplify
       </button>
-      <button onClick={() => onAction("expand")} className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-md bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors">
-        <Maximize2 className="h-3 w-3" /> Expand
+      <button onClick={() => handleClick("expand")} disabled={!!loading} className="inline-flex items-center gap-1 text-[10px] px-2.5 py-1.5 rounded-md bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors disabled:opacity-50 cursor-pointer active:scale-95">
+        {loading === "expand" ? <span className="h-3 w-3 border border-current border-t-transparent rounded-full animate-spin" /> : <Maximize2 className="h-3 w-3" />} Expand
       </button>
-      <button onClick={() => onAction("decide")} className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-md bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors">
-        <Target className="h-3 w-3" /> Decision-Focus
+      <button onClick={() => handleClick("decide")} disabled={!!loading} className="inline-flex items-center gap-1 text-[10px] px-2.5 py-1.5 rounded-md bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors disabled:opacity-50 cursor-pointer active:scale-95">
+        {loading === "decide" ? <span className="h-3 w-3 border border-current border-t-transparent rounded-full animate-spin" /> : <Target className="h-3 w-3" />} Decision-Focus
       </button>
     </div>
   );
