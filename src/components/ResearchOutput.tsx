@@ -275,7 +275,7 @@ const MODE_LABELS: Record<ResearchMode, string> = {
   literature: "Literature Review",
 };
 
-export function ResearchOutput({ content, sources, isLoading, error, hasMore, onContinue, isPaused, retryCountdown, mode = "research" }: ResearchOutputProps) {
+export function ResearchOutput({ content, sources, isLoading, error, hasMore, onContinue, isPaused, retryCountdown, mode = "research", onRefineSection, researchId }: ResearchOutputProps) {
   const reportRef = useRef<HTMLDivElement>(null);
   const [viewerUrl, setViewerUrl] = useState<{ url: string; title?: string } | null>(null);
 
@@ -288,7 +288,32 @@ export function ResearchOutput({ content, sources, isLoading, error, hasMore, on
     if (!reportRef.current) return;
     const html2pdf = (await import("html2pdf.js")).default;
     html2pdf().set({ margin: 0.5, filename: "omniquery_report.pdf", html2canvas: { scale: 2 }, jsPDF: { unit: "in", format: "a4" } }).from(reportRef.current).save();
-  }, []);
+
+    // Save to bookmarks if we have a research ID and user
+    if (researchId) {
+      try {
+        const { supabase } = await import("@/integrations/supabase/client");
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          // Check if already bookmarked
+          const { data: existing } = await supabase
+            .from("bookmarks")
+            .select("id")
+            .eq("user_id", user.id)
+            .eq("research_id", researchId)
+            .maybeSingle();
+          if (!existing) {
+            await supabase.from("bookmarks").insert({
+              user_id: user.id,
+              research_id: researchId,
+            });
+          }
+        }
+      } catch (e) {
+        console.error("Failed to save bookmark:", e);
+      }
+    }
+  }, [researchId]);
 
   const handleLinkClick = useCallback((url: string, title?: string) => {
     setViewerUrl({ url, title });
@@ -341,8 +366,8 @@ export function ResearchOutput({ content, sources, isLoading, error, hasMore, on
               exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.2 }}
             >
-              {mode === "executive" && <ExecutiveLayout content={content} handleLinkClick={handleLinkClick} />}
-              {mode === "research" && <ResearchLayout content={content} handleLinkClick={handleLinkClick} />}
+              {mode === "executive" && <ExecutiveLayout content={content} handleLinkClick={handleLinkClick} onRefine={onRefineSection} />}
+              {mode === "research" && <ResearchLayout content={content} handleLinkClick={handleLinkClick} onRefine={onRefineSection} />}
               {mode === "literature" && <LiteratureLayout content={content} handleLinkClick={handleLinkClick} />}
             </motion.div>
           </AnimatePresence>
