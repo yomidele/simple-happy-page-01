@@ -51,6 +51,7 @@ const Index = () => {
 
   const lastQueryRef = useRef("");
   const hasSavedRef = useRef(false);
+  const [lastResearchId, setLastResearchId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -62,12 +63,13 @@ const Index = () => {
     if (!isLoading && content && user && !isViewingHistory && !hasMore && !hasSavedRef.current) {
       hasSavedRef.current = true;
       const saveToHistory = async () => {
-        await supabase.from("research_history").insert({
+        const { data } = await supabase.from("research_history").insert({
           user_id: user.id,
           query: lastQueryRef.current || "Research",
           content,
           sources: sources as any,
-        });
+        }).select("id").single();
+        if (data) setLastResearchId(data.id);
         setHistoryRefreshKey((k) => k + 1);
       };
       saveToHistory();
@@ -88,7 +90,24 @@ const Index = () => {
     setViewedSources([]);
     lastQueryRef.current = query;
     hasSavedRef.current = false;
+    setLastResearchId(null);
     research(query, DEPTH_LABELS[selectedDepth], MODE_TO_RESEARCH_TYPE[selectedMode]);
+  }, [research, selectedDepth, selectedMode]);
+
+  const handleRefineSection = useCallback((sectionBody: string, action: string) => {
+    const actionMap: Record<string, string> = {
+      simplify: "Simplify the following section, making it shorter and clearer:",
+      expand: "Expand the following section with more detail and evidence:",
+      decide: "Rewrite the following section to be decision-focused, with clear actionable recommendations:",
+    };
+    const prompt = `${actionMap[action] || "Refine:"}\n\n${sectionBody}`;
+    setIsViewingHistory(false);
+    setViewedContent("");
+    setViewedSources([]);
+    lastQueryRef.current = prompt;
+    hasSavedRef.current = false;
+    setLastResearchId(null);
+    research(prompt, DEPTH_LABELS[selectedDepth], MODE_TO_RESEARCH_TYPE[selectedMode]);
   }, [research, selectedDepth, selectedMode]);
 
   const handleStartResearch = useCallback(() => {
