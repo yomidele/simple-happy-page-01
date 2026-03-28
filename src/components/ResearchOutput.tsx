@@ -5,7 +5,11 @@ import { LinkPreviewCard } from "@/components/LinkPreviewCard";
 import { MermaidDiagram } from "@/components/MermaidDiagram";
 import { LinkViewer } from "@/components/LinkViewer";
 import { Button } from "@/components/ui/button";
-import { ClipboardCopy, Download, PlayCircle, ChevronDown, ChevronUp, Minimize2, Maximize2, Target } from "lucide-react";
+import {
+  ClipboardCopy, Download, PlayCircle, ChevronDown, ChevronUp,
+  Minimize2, Maximize2, Target, Shield, AlertTriangle, Lightbulb,
+  CheckCircle2
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Source } from "@/types/research";
 import type { ResearchMode } from "@/components/ModeSwitcher";
@@ -23,28 +27,41 @@ interface ResearchOutputProps {
 }
 
 // Parse markdown content into titled sections
-function parseSections(content: string): Array<{ title: string; body: string }> {
+function parseSections(content: string): Array<{ title: string; body: string; level: number }> {
   const lines = content.split("\n");
-  const sections: Array<{ title: string; body: string }> = [];
+  const sections: Array<{ title: string; body: string; level: number }> = [];
   let currentTitle = "";
+  let currentLevel = 0;
   let currentBody: string[] = [];
 
   for (const line of lines) {
-    const headingMatch = line.match(/^#{1,3}\s+(.+)/);
+    const headingMatch = line.match(/^(#{1,3})\s+(.+)/);
     if (headingMatch) {
       if (currentTitle || currentBody.length > 0) {
-        sections.push({ title: currentTitle, body: currentBody.join("\n") });
+        sections.push({ title: currentTitle, body: currentBody.join("\n"), level: currentLevel });
       }
-      currentTitle = headingMatch[1];
+      currentLevel = headingMatch[1].length;
+      currentTitle = headingMatch[2];
       currentBody = [];
     } else {
       currentBody.push(line);
     }
   }
   if (currentTitle || currentBody.length > 0) {
-    sections.push({ title: currentTitle, body: currentBody.join("\n") });
+    sections.push({ title: currentTitle, body: currentBody.join("\n"), level: currentLevel });
   }
   return sections;
+}
+
+// Detect section type for smart icons
+function getSectionIcon(title: string) {
+  const lower = title.toLowerCase();
+  if (lower.includes("risk") || lower.includes("limitation") || lower.includes("threat")) return AlertTriangle;
+  if (lower.includes("verdict") || lower.includes("conclusion") || lower.includes("decision") || lower.includes("recommendation")) return CheckCircle2;
+  if (lower.includes("insight") || lower.includes("finding") || lower.includes("key")) return Lightbulb;
+  if (lower.includes("contradiction") || lower.includes("gap") || lower.includes("debate")) return AlertTriangle;
+  if (lower.includes("evidence") || lower.includes("source") || lower.includes("credibility")) return Shield;
+  return null;
 }
 
 const markdownComponents = (handleLinkClick: (url: string, title?: string) => void) => ({
@@ -81,7 +98,7 @@ const markdownComponents = (handleLinkClick: (url: string, title?: string) => vo
 // Refine buttons for each section
 function RefineButtons({ onAction }: { onAction: (action: string) => void }) {
   return (
-    <div className="flex gap-1.5 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+    <div className="flex flex-wrap gap-1.5 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
       <button onClick={() => onAction("simplify")} className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-md bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors">
         <Minimize2 className="h-3 w-3" /> Simplify
       </button>
@@ -95,6 +112,19 @@ function RefineButtons({ onAction }: { onAction: (action: string) => void }) {
   );
 }
 
+// ─── Source Credibility Badge ────────────────────────────────
+function SourceCredibilityBadge({ url }: { url: string }) {
+  const domain = (() => {
+    try { return new URL(url).hostname; } catch { return ""; }
+  })();
+  const isAcademic = /\.edu|\.gov|scholar\.google|pubmed|arxiv|doi\.org|jstor|springer|wiley|nature\.com|science\.org/i.test(domain);
+  const isNews = /reuters|bbc|nytimes|washingtonpost|guardian|apnews/i.test(domain);
+
+  if (isAcademic) return <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-semibold"><Shield className="h-2.5 w-2.5" />Academic</span>;
+  if (isNews) return <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full bg-accent/30 text-accent-foreground font-semibold">News</span>;
+  return <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-semibold">Web</span>;
+}
+
 // ─── EXECUTIVE MODE ──────────────────────────────────────────
 function ExecutiveLayout({ content, handleLinkClick }: { content: string; handleLinkClick: (url: string, title?: string) => void }) {
   const sections = parseSections(content);
@@ -105,7 +135,9 @@ function ExecutiveLayout({ content, handleLinkClick }: { content: string; handle
   return (
     <div className="space-y-3">
       {sections.map((section, i) => {
-        const isVerdict = section.title.toLowerCase().includes("verdict") || section.title.toLowerCase().includes("conclusion");
+        const isVerdict = section.title.toLowerCase().includes("verdict") || section.title.toLowerCase().includes("conclusion") || section.title.toLowerCase().includes("decision");
+        const isRisk = section.title.toLowerCase().includes("risk") || section.title.toLowerCase().includes("limitation");
+        const SectionIcon = getSectionIcon(section.title);
         return (
           <motion.div
             key={i}
@@ -114,14 +146,19 @@ function ExecutiveLayout({ content, handleLinkClick }: { content: string; handle
             transition={{ delay: i * 0.05 }}
             className={`group rounded-xl border p-4 ${
               isVerdict
-                ? "border-primary/30 bg-primary/5"
+                ? "border-primary/30 bg-primary/5 shadow-sm"
+                : isRisk
+                ? "border-destructive/20 bg-destructive/5"
                 : "border-border bg-card"
             }`}
           >
             {section.title && (
-              <h3 className={`text-sm font-bold font-display mb-2 ${isVerdict ? "text-primary" : "text-foreground"}`}>
-                {section.title}
-              </h3>
+              <div className="flex items-center gap-2 mb-2">
+                {SectionIcon && <SectionIcon className={`h-3.5 w-3.5 ${isVerdict ? "text-primary" : isRisk ? "text-destructive" : "text-muted-foreground"}`} />}
+                <h3 className={`text-sm font-bold font-display ${isVerdict ? "text-primary" : isRisk ? "text-destructive" : "text-foreground"}`}>
+                  {section.title}
+                </h3>
+              </div>
             )}
             <div className="prose prose-slate dark:prose-invert max-w-none prose-sm font-body prose-p:leading-snug prose-p:mb-1.5 overflow-x-hidden">
               <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents(handleLinkClick)}>
@@ -149,45 +186,51 @@ function ResearchLayout({ content, handleLinkClick }: { content: string; handleL
 
   return (
     <div className="space-y-2">
-      {sections.map((section, i) => (
-        <motion.div
-          key={i}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: i * 0.04 }}
-          className="group border border-border rounded-xl bg-card overflow-hidden"
-        >
-          {section.title && (
-            <button
-              onClick={() => toggle(i)}
-              className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-muted/50 transition-colors"
-            >
-              <span className="text-sm font-semibold font-display text-foreground">{section.title}</span>
-              {collapsed[i] ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronUp className="h-4 w-4 text-muted-foreground" />}
-            </button>
-          )}
-          <AnimatePresence initial={false}>
-            {!collapsed[i] && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="overflow-hidden"
+      {sections.map((section, i) => {
+        const SectionIcon = getSectionIcon(section.title);
+        return (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.04 }}
+            className="group border border-border rounded-xl bg-card overflow-hidden"
+          >
+            {section.title && (
+              <button
+                onClick={() => toggle(i)}
+                className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-muted/50 transition-colors"
               >
-                <div className="px-4 pb-4 prose prose-slate dark:prose-invert max-w-none prose-sm md:prose-base font-body prose-headings:font-display prose-p:leading-relaxed overflow-x-hidden">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents(handleLinkClick)}>
-                    {section.body.trim()}
-                  </ReactMarkdown>
+                <div className="flex items-center gap-2">
+                  {SectionIcon && <SectionIcon className="h-4 w-4 text-muted-foreground" />}
+                  <span className="text-sm font-semibold font-display text-foreground">{section.title}</span>
                 </div>
-                <div className="px-4 pb-3">
-                  <RefineButtons onAction={() => {}} />
-                </div>
-              </motion.div>
+                {collapsed[i] ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronUp className="h-4 w-4 text-muted-foreground" />}
+              </button>
             )}
-          </AnimatePresence>
-        </motion.div>
-      ))}
+            <AnimatePresence initial={false}>
+              {!collapsed[i] && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <div className="px-4 pb-4 prose prose-slate dark:prose-invert max-w-none prose-sm md:prose-base font-body prose-headings:font-display prose-p:leading-relaxed overflow-x-hidden">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents(handleLinkClick)}>
+                      {section.body.trim()}
+                    </ReactMarkdown>
+                  </div>
+                  <div className="px-4 pb-3">
+                    <RefineButtons onAction={() => {}} />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        );
+      })}
     </div>
   );
 }
@@ -254,20 +297,22 @@ export function ResearchOutput({ content, sources, isLoading, error, hasMore, on
     <div className="w-full">
       {viewerUrl && <LinkViewer url={viewerUrl.url} title={viewerUrl.title} onClose={() => setViewerUrl(null)} />}
 
-      {/* Toolbar - sticky on mobile */}
+      {/* Toolbar - ALWAYS visible, sticky on mobile, static on desktop */}
       {content && !isLoading && (
-        <div className="flex justify-end gap-2 mb-3 sticky top-0 z-20 bg-background/95 backdrop-blur-sm py-2 -mx-4 px-4 md:mx-0 md:px-0 md:static md:bg-transparent md:backdrop-blur-none md:py-0">
+        <div className="flex justify-end gap-2 mb-3 sticky top-0 z-20 bg-background/95 backdrop-blur-sm py-2 px-1">
           <Button variant="outline" size="sm" onClick={handleCopy} className="gap-1.5 text-xs h-9">
-            <ClipboardCopy className="h-3.5 w-3.5" /> Copy
+            <ClipboardCopy className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Copy</span>
           </Button>
           <Button variant="outline" size="sm" onClick={handleDownload} className="gap-1.5 text-xs h-9">
-            <Download className="h-3.5 w-3.5" /> PDF
+            <Download className="h-3.5 w-3.5" />
+            <span>PDF</span>
           </Button>
         </div>
       )}
 
       {/* Report container */}
-      <div ref={reportRef} className={`bg-card border border-border rounded-2xl overflow-hidden ${mode === "literature" ? "" : ""}`}>
+      <div ref={reportRef} className="bg-card border border-border rounded-2xl overflow-hidden">
         <div className="flex items-center gap-1.5 px-5 pt-4 pb-2">
           <div className="h-2.5 w-2.5 rounded-full bg-destructive/50" />
           <div className="h-2.5 w-2.5 rounded-full bg-accent/50" />
@@ -314,7 +359,7 @@ export function ResearchOutput({ content, sources, isLoading, error, hasMore, on
             </div>
           )}
 
-          {/* References */}
+          {/* References with credibility badges */}
           {sources.length > 0 && !isLoading && (
             <div className="mt-8 md:mt-10 pt-4 md:pt-6 border-t border-border">
               <h3 className="text-xs font-semibold text-primary uppercase tracking-wider mb-3 font-display">
@@ -324,11 +369,16 @@ export function ResearchOutput({ content, sources, isLoading, error, hasMore, on
                 {sources.map((source, i) => (
                   <div key={i} className="flex items-start gap-2">
                     <span className="text-muted-foreground font-display text-xs mt-2 min-w-[1.5rem]">[{i + 1}]</span>
-                    <div
-                      className="flex-1 cursor-pointer min-w-0"
-                      onClick={() => handleLinkClick(source.url, source.title)}
-                    >
-                      <LinkPreviewCard url={source.url} title={source.title} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <SourceCredibilityBadge url={source.url} />
+                      </div>
+                      <div
+                        className="cursor-pointer"
+                        onClick={() => handleLinkClick(source.url, source.title)}
+                      >
+                        <LinkPreviewCard url={source.url} title={source.title} />
+                      </div>
                     </div>
                   </div>
                 ))}
