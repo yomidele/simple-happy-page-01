@@ -219,6 +219,8 @@ const Index = () => {
                     hasMore={isViewingHistory ? false : hasMore}
                     onContinue={continueResearch}
                     mode={selectedMode}
+                    onRefineSection={handleRefineSection}
+                    researchId={lastResearchId}
                   />
                 )}
               </div>
