@@ -8,10 +8,10 @@ interface ModeSwitcherProps {
   onModeChange: (mode: ResearchMode) => void;
 }
 
-const modes: Array<{ id: ResearchMode; label: string; icon: typeof Zap; description: string }> = [
-  { id: "executive", label: "Executive", icon: Zap, description: "Fast decisions" },
-  { id: "research", label: "Research", icon: Search, description: "Balanced analysis" },
-  { id: "literature", label: "Literature", icon: BookOpen, description: "Deep review" },
+const modes: Array<{ id: ResearchMode; label: string; shortLabel: string; icon: typeof Zap; description: string }> = [
+  { id: "executive", label: "Executive", shortLabel: "Exec", icon: Zap, description: "Fast decisions" },
+  { id: "research", label: "Research", shortLabel: "Research", icon: Search, description: "Balanced analysis" },
+  { id: "literature", label: "Literature", shortLabel: "Lit", icon: BookOpen, description: "Deep review" },
 ];
 
 export function ModeSwitcher({ activeMode, onModeChange }: ModeSwitcherProps) {
@@ -27,7 +27,7 @@ export function ModeSwitcher({ activeMode, onModeChange }: ModeSwitcherProps) {
             <button
               key={mode.id}
               onClick={() => onModeChange(mode.id)}
-              className={`relative flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg text-sm font-medium transition-colors z-10 ${
+              className={`relative flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 px-2 sm:px-3 rounded-lg text-sm font-medium transition-colors z-10 ${
                 isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -40,9 +40,10 @@ export function ModeSwitcher({ activeMode, onModeChange }: ModeSwitcherProps) {
               )}
               <span className="relative flex items-center gap-1.5">
                 <mode.icon className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">{mode.label}</span>
-                <span className="sm:hidden text-xs">{mode.label.slice(0, 4)}</span>
+                <span className="hidden sm:inline text-sm">{mode.label}</span>
+                <span className="sm:hidden text-xs">{mode.shortLabel}</span>
               </span>
+              <span className="relative text-[9px] text-muted-foreground hidden sm:block">{mode.description}</span>
             </button>
           );
         })}
