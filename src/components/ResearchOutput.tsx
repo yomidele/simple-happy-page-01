@@ -138,7 +138,7 @@ function SourceCredibilityBadge({ url }: { url: string }) {
 }
 
 // ─── EXECUTIVE MODE ──────────────────────────────────────────
-function ExecutiveLayout({ content, handleLinkClick }: { content: string; handleLinkClick: (url: string, title?: string) => void }) {
+function ExecutiveLayout({ content, handleLinkClick, onRefine }: { content: string; handleLinkClick: (url: string, title?: string) => void; onRefine?: (sectionBody: string, action: string) => void }) {
   const sections = parseSections(content);
   if (sections.length <= 1) {
     return <DefaultMarkdown content={content} handleLinkClick={handleLinkClick} />;
@@ -177,7 +177,7 @@ function ExecutiveLayout({ content, handleLinkClick }: { content: string; handle
                 {section.body.trim()}
               </ReactMarkdown>
             </div>
-            <RefineButtons onAction={() => {}} />
+            <RefineButtons sectionBody={section.body.trim()} onAction={onRefine} />
           </motion.div>
         );
       })}
@@ -186,7 +186,7 @@ function ExecutiveLayout({ content, handleLinkClick }: { content: string; handle
 }
 
 // ─── RESEARCH MODE (collapsible panels) ──────────────────────
-function ResearchLayout({ content, handleLinkClick }: { content: string; handleLinkClick: (url: string, title?: string) => void }) {
+function ResearchLayout({ content, handleLinkClick, onRefine }: { content: string; handleLinkClick: (url: string, title?: string) => void; onRefine?: (sectionBody: string, action: string) => void }) {
   const sections = parseSections(content);
   const [collapsed, setCollapsed] = useState<Record<number, boolean>>({});
 
@@ -235,7 +235,7 @@ function ResearchLayout({ content, handleLinkClick }: { content: string; handleL
                     </ReactMarkdown>
                   </div>
                   <div className="px-4 pb-3">
-                    <RefineButtons onAction={() => {}} />
+                    <RefineButtons sectionBody={section.body.trim()} onAction={onRefine} />
                   </div>
                 </motion.div>
               )}
