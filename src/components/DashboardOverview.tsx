@@ -1,4 +1,4 @@
-import { FileText, Activity, BookmarkCheck, ArrowRight, Clock, TrendingUp } from "lucide-react";
+import { FileText, Activity, BookmarkCheck, ArrowRight, Clock, TrendingUp, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
