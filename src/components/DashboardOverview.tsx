@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 interface DashboardOverviewProps {
   onStartResearch: () => void;
+  onRecentClick?: (item: { query: string; content: string; sources: import("@/types/research").Source[] }) => void;
 }
 
 interface RecentItem {
