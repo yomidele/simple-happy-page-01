@@ -23,6 +23,7 @@ export function DashboardOverview({ onStartResearch, onRecentClick }: DashboardO
   const [savedReports, setSavedReports] = useState<number | null>(null);
   const [recentItems, setRecentItems] = useState<RecentItem[]>([]);
   const [todayCount, setTodayCount] = useState<number>(0);
+  const [weeklyData, setWeeklyData] = useState<{ day: string; count: number }[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -40,6 +41,29 @@ export function DashboardOverview({ onStartResearch, onRecentClick }: DashboardO
       setSavedReports(bookmarksRes.count ?? 0);
       setRecentItems((recentRes.data as RecentItem[]) ?? []);
       setTodayCount(todayRes.count ?? 0);
+
+      // Weekly activity
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 6);
+      const { data: weekData } = await supabase
+        .from("research_history")
+        .select("created_at")
+        .eq("user_id", user.id)
+        .gte("created_at", weekAgo.toISOString());
+      if (weekData) {
+        const days: Record<string, number> = {};
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          const key = d.toLocaleDateString("en", { weekday: "short" });
+          days[key] = 0;
+        }
+        weekData.forEach((r: any) => {
+          const key = new Date(r.created_at).toLocaleDateString("en", { weekday: "short" });
+          if (days[key] !== undefined) days[key]++;
+        });
+        setWeeklyData(Object.entries(days).map(([day, count]) => ({ day, count })));
+      }
     };
     fetchStats();
   }, [user]);
@@ -82,6 +106,34 @@ export function DashboardOverview({ onStartResearch, onRecentClick }: DashboardO
                 </span>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Weekly activity chart */}
+      {weeklyData.length > 0 && (
+        <div className="mb-10">
+          <h2 className="text-sm font-semibold text-foreground font-display mb-3 flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            Weekly Activity
+          </h2>
+          <div className="bg-card border border-border rounded-xl p-4">
+            <div className="flex items-end gap-2 h-24">
+              {weeklyData.map((d) => {
+                const maxCount = Math.max(...weeklyData.map((w) => w.count), 1);
+                const height = (d.count / maxCount) * 100;
+                return (
+                  <div key={d.day} className="flex-1 flex flex-col items-center gap-1">
+                    <span className="text-[10px] text-muted-foreground font-display">{d.count || ""}</span>
+                    <div
+                      className="w-full rounded-t-md bg-primary/20 hover:bg-primary/40 transition-colors min-h-[4px]"
+                      style={{ height: `${Math.max(height, 4)}%` }}
+                    />
+                    <span className="text-[10px] text-muted-foreground">{d.day}</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
