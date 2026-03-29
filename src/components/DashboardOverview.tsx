@@ -12,10 +12,12 @@ interface DashboardOverviewProps {
 interface RecentItem {
   id: string;
   query: string;
+  content: string;
+  sources: any[];
   created_at: string;
 }
 
-export function DashboardOverview({ onStartResearch }: DashboardOverviewProps) {
+export function DashboardOverview({ onStartResearch, onRecentClick }: DashboardOverviewProps) {
   const { user } = useAuth();
   const [totalResearches, setTotalResearches] = useState<number | null>(null);
   const [savedReports, setSavedReports] = useState<number | null>(null);
@@ -31,7 +33,7 @@ export function DashboardOverview({ onStartResearch }: DashboardOverviewProps) {
       const [historyRes, bookmarksRes, recentRes, todayRes] = await Promise.all([
         supabase.from("research_history").select("id", { count: "exact", head: true }).eq("user_id", user.id),
         supabase.from("bookmarks").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-        supabase.from("research_history").select("id, query, created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(5),
+        supabase.from("research_history").select("id, query, content, sources, created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(5),
         supabase.from("research_history").select("id", { count: "exact", head: true }).eq("user_id", user.id).gte("created_at", today.toISOString()),
       ]);
       setTotalResearches(historyRes.count ?? 0);
@@ -72,7 +74,7 @@ export function DashboardOverview({ onStartResearch }: DashboardOverviewProps) {
               <div
                 key={item.id}
                 className="flex items-center justify-between px-4 py-2.5 bg-card border border-border rounded-xl hover:border-primary/30 transition-colors cursor-pointer group"
-                onClick={onStartResearch}
+                onClick={() => onRecentClick ? onRecentClick({ query: item.query, content: item.content, sources: item.sources || [] }) : onStartResearch}
               >
                 <span className="text-sm text-foreground font-body truncate max-w-[80%]">{item.query}</span>
                 <span className="text-[10px] text-muted-foreground font-display whitespace-nowrap">
