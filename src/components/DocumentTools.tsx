@@ -126,7 +126,7 @@ export function DocumentTools() {
         id: crypto.randomUUID(),
         fileName: file.name,
         fromType: type.split("/").pop() || "unknown",
-        toFormat: "txt",
+        toFormat: "txt" as const,
         text: text.slice(0, 50000),
         convertedAt: new Date().toISOString(),
       }, ...prev].slice(0, 10));
