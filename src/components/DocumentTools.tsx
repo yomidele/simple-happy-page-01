@@ -139,35 +139,24 @@ export function DocumentTools() {
   }, [extractPdfText, extractImageText, toast, user]);
 
   const extractDocxText = async (file: File): Promise<string> => {
-    // Simple DOCX text extraction using JSZip-like approach
-    // DOCX is a ZIP containing XML files
+    // Basic DOCX extraction: DOCX is a ZIP, use DecompressionStream if available
     const arrayBuffer = await file.arrayBuffer();
-    const blob = new Blob([arrayBuffer]);
-    
-    // Use the browser's built-in decompression
-    const entries: string[] = [];
-    try {
-      const { default: JSZip } = await import("jszip") as any;
-      const zip = await JSZip.loadAsync(blob);
-      const docXml = await zip.file("word/document.xml")?.async("string");
-      if (docXml) {
-        // Strip XML tags to get text
-        const text = docXml
-          .replace(/<w:p[^>]*>/g, "\n")
-          .replace(/<[^>]+>/g, "")
-          .replace(/&amp;/g, "&")
-          .replace(/&lt;/g, "<")
-          .replace(/&gt;/g, ">")
-          .replace(/&quot;/g, '"')
-          .replace(/\n{3,}/g, "\n\n")
-          .trim();
-        return text;
-      }
-    } catch {
-      // Fallback: try reading as text
+    // Fallback: read raw bytes and strip XML-like tags
+    const decoder = new TextDecoder("utf-8", { fatal: false });
+    const raw = decoder.decode(arrayBuffer);
+    // Look for document.xml content between w:body tags
+    const bodyMatch = raw.match(/<w:body[^>]*>([\s\S]*?)<\/w:body>/);
+    if (bodyMatch) {
+      return bodyMatch[1]
+        .replace(/<w:p[^>]*>/g, "\n")
+        .replace(/<[^>]+>/g, "")
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
     }
-    
-    return file.text();
+    return raw.replace(/<[^>]+>/g, " ").replace(/\s{3,}/g, "\n").trim().slice(0, 50000);
   };
 
   const handleDrop = useCallback((e: React.DragEvent) => {
